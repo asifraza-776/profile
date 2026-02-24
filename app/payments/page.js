@@ -378,7 +378,7 @@ export default function PaymentsPage() {
                       </div>
                       <div className="flex-1">
                         <p className="font-semibold">{p.name}</p>
-                        {p.message && <p className="text-sm text-gray-400">"{p.message}"</p>}
+                        {p.message && <p className="text-sm text-gray-400">'{p.message}'</p>}
                         {p.method === 'upi' && (
                           <span className="text-xs text-green-400">✅ UPI Payment</span>
                         )}
