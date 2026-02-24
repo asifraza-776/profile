@@ -141,7 +141,7 @@ const ProfilePage = () => {
               </span>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                Hello, I&apos;m{' '}
+                Hello I am{' '}
                 <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   Asif.
                 </span>
@@ -164,7 +164,7 @@ const ProfilePage = () => {
                 </a>
                 <a href="#contact">
                   <button className="border border-gray-700 hover:border-purple-600 px-8 py-3 rounded-full font-medium transition-all transform hover:scale-105">
-                    Let&apos;s Connect
+                    Let Connect
                   </button>
                 </a>
 
@@ -282,7 +282,7 @@ const ProfilePage = () => {
               {/* Left Column */}
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                  Let&apos;s build something{' '}
+                  Let build something{' '}
                   <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                     remarkable
                   </span>{' '}

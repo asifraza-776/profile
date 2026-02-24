@@ -12,7 +12,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 export default function PaymentsPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
+  // const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
   const [payments, setPayments] = useState([]);
   const [paymentform, setPaymentForm] = useState({
@@ -378,7 +378,7 @@ export default function PaymentsPage() {
                       </div>
                       <div className="flex-1">
                         <p className="font-semibold">{p.name}</p>
-                        {p.message && <p className="text-sm text-gray-400">'{p.message}'</p>}
+                        {p.message && <p className="text-sm text-gray-400">&quot;{p.message}&quot;</p>}
                         {p.method === 'upi' && (
                           <span className="text-xs text-green-400">✅ UPI Payment</span>
                         )}
@@ -515,7 +515,7 @@ export default function PaymentsPage() {
                         onClick={() => setShowUpiForm(true)}
                         className="mt-4 w-full bg-green-600 text-white py-3 rounded-lg text-sm hover:bg-green-700 font-medium"
                       >
-                        I've Completed the Payment ✓
+                        I have Completed the Payment ✓
                       </button>
                     ) : (
                       <div className="mt-4 w-full space-y-3">
