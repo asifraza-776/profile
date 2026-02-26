@@ -9,39 +9,48 @@ export const authOptions = {
       clientId: process.env.GITHUB_ID,
       clientSecret: process.env.GITHUB_SECRET,
     }),
-    // Add other providers as needed
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      await connectDB();
-      
-      // Check if user exists
-      let dbUser = await User.findOne({ email: user.email });
-      
-      if (!dbUser) {
-        // Create new user if doesn't exist
-        dbUser = await User.create({
-          name: user.name,
-          email: user.email,
-          username: user.email.split('@')[0], // Generate username from email
-          profilepic: user.image,
-        });
+      try {
+        await connectDB();
+        
+        // Check if user exists
+        let dbUser = await User.findOne({ email: user.email });
+        
+        if (!dbUser) {
+          // Create new user if doesn't exist
+          dbUser = await User.create({
+            name: user.name,
+            email: user.email,
+            username: user.email.split('@')[0],
+            profilepic: user.image,
+          });
+        }
+        
+        return true;
+      } catch (error) {
+        console.error('SignIn error:', error);
+        return false; // Deny sign in if database fails
       }
-      
-      return true;
     },
     async session({ session, token }) {
-      await connectDB();
-      
-      // Get user from database
-      const dbUser = await User.findOne({ email: session.user.email });
-      
-      if (dbUser) {
-        session.user.id = dbUser._id.toString();
-        session.user.username = dbUser.username;
+      try {
+        await connectDB();
+        
+        // Get user from database
+        const dbUser = await User.findOne({ email: session.user.email });
+        
+        if (dbUser) {
+          session.user.id = dbUser._id.toString();
+          session.user.username = dbUser.username;
+        }
+        
+        return session;
+      } catch (error) {
+        console.error('Session error:', error);
+        return session; // Return session even if DB fails
       }
-      
-      return session;
     },
     async jwt({ token, user }) {
       return token;
@@ -49,13 +58,15 @@ export const authOptions = {
   },
   pages: {
     signIn: '/login',
-    error: '/login', // Error page redirect
+    error: '/login',
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // Add debug mode temporarily to see errors
+  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);
