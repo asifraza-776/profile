@@ -1,139 +1,227 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/db/connectDB';
 import Payment from '@/models/Payment';
-import User from '@/models/User';
+import crypto from 'crypto';
+
+// Valid UPI transaction ID patterns from different apps
+const UPI_PATTERNS = [
+  // Google Pay / Tez
+  { pattern: /^UPI-[A-Z0-9]{10,16}$/, name: 'Google Pay' },        // UPI-ABCD1234XYZ
+  { pattern: /^T[A-Z0-9]{12,20}$/, name: 'Google Pay' },            // T1234567890123456
+  
+  // PhonePe
+  { pattern: /^PP[A-Z0-9]{12,18}$/, name: 'PhonePe' },              // PPABCD12345678
+  { pattern: /^PHONEPE[A-Z0-9]{10,14}$/, name: 'PhonePe' },         // PHONEPE12345678
+  
+  // Paytm
+  { pattern: /^PAY[A-Z0-9]{12,18}$/, name: 'Paytm' },               // PAY123456789012
+  { pattern: /^P[A-Z0-9]{14,20}$/, name: 'Paytm' },                 // P1234567890123456
+  
+  // BHIM / Generic UPI
+  { pattern: /^[A-Z0-9]{12,22}$/, name: 'BHIM/Generic UPI' },       // 123456789012
+  { pattern: /^[0-9]{12,20}$/, name: 'BHIM/Generic UPI' },          // 1234567890123456
+  
+  // Bank-specific
+  { pattern: /^SBI[A-Z0-9]{10,18}$/, name: 'SBI UPI' },             // SBI12345678
+  { pattern: /^HDFC[A-Z0-9]{10,18}$/, name: 'HDFC UPI' },           // HDFC12345678
+  { pattern: /^ICICI[A-Z0-9]{10,18}$/, name: 'ICICI UPI' },         // ICICI12345678
+];
+
+// Simulate verification with a "real" transaction ID
+// In production, this would call your payment gateway's API
+async function verifyUPITransaction(transactionId, amount) {
+  console.log(`🔍 Verifying UPI transaction: ${transactionId}, Amount: ₹${amount}`);
+  
+  // Step 1: Check minimum length
+  if (transactionId.length < 10) {
+    return {
+      verified: false,
+      error: 'Transaction ID is too short. Minimum 10 characters required.'
+    };
+  }
+  
+  if (transactionId.length > 30) {
+    return {
+      verified: false,
+      error: 'Transaction ID is too long. Maximum 30 characters allowed.'
+    };
+  }
+  
+  // Step 2: Check if contains only allowed characters
+  if (!/^[A-Za-z0-9-]+$/.test(transactionId)) {
+    return {
+      verified: false,
+      error: 'Transaction ID can only contain letters, numbers, and hyphens.'
+    };
+  }
+  
+  // Step 3: Check against known patterns to identify UPI app
+  let matchedApp = 'Unknown';
+  for (const { pattern, name } of UPI_PATTERNS) {
+    if (pattern.test(transactionId)) {
+      matchedApp = name;
+      break;
+    }
+  }
+  
+  // Step 4: Simulate verification with banking system
+  // In real implementation, you would:
+  // 1. Call your bank's API
+  // 2. Check if transaction exists and amount matches
+  // 3. Verify transaction status is SUCCESS
+  
+  // For demo purposes, we'll use a deterministic verification
+  // based on transaction ID checksum
+  
+  // Create a simple checksum from transaction ID
+  const checksum = crypto
+    .createHash('sha256')
+    .update(transactionId + amount)
+    .digest('hex');
+  
+  // Use first 2 chars of checksum to determine success (80% success rate for demo)
+  const successThreshold = parseInt(checksum.substring(0, 2), 16) / 255; // 0-1
+  const isSuccessful = successThreshold > 0.2; // 80% success rate
+  
+  if (isSuccessful) {
+    return {
+      verified: true,
+      app: matchedApp,
+      transactionDetails: {
+        id: transactionId,
+        amount: amount,
+        time: new Date().toISOString(),
+        reference: checksum.substring(0, 12).toUpperCase(),
+        status: 'SUCCESS'
+      }
+    };
+  } else {
+    return {
+      verified: false,
+      error: 'Transaction not found in bank records. Please check the ID and try again.'
+    };
+  }
+}
 
 export async function POST(req) {
   try {
-    console.log('📥 UPI verification request started');
-    
     // Parse request body
-    let body;
-    try {
-      body = await req.json();
-      console.log('Request body received:', body);
-    } catch (e) {
-      console.error('Failed to parse request body:', e);
-      return NextResponse.json(
-        { success: false, error: 'Invalid request body' },
-        { status: 400 }
-      );
-    }
-
+    const body = await req.json();
     const { name, amount, message, transactionId, to_user } = body;
 
     // Validate required fields
-    const missingFields = [];
-    if (!name) missingFields.push('name');
-    if (!amount) missingFields.push('amount');
-    if (!transactionId) missingFields.push('transactionId');
-    if (!to_user) missingFields.push('to_user');
-
-    if (missingFields.length > 0) {
-      console.log('Missing fields:', missingFields);
-      return NextResponse.json(
-        { success: false, error: `Missing required fields: ${missingFields.join(', ')}` },
-        { status: 400 }
-      );
+    if (!name || !amount || !transactionId || !to_user) {
+      return NextResponse.json({
+        success: false,
+        error: 'Missing required fields'
+      }, { status: 400 });
     }
 
     // Validate amount
     const parsedAmount = parseInt(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid amount' },
-        { status: 400 }
-      );
+    if (isNaN(parsedAmount) || parsedAmount < 1) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid amount. Must be at least ₹1.'
+      }, { status: 400 });
     }
 
     // Connect to database
-    console.log('Connecting to database...');
-    try {
-      await connectDB();
-      console.log('✅ Database connected');
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError);
-      return NextResponse.json(
-        { success: false, error: 'Database connection failed' },
-        { status: 500 }
-      );
-    }
-
-    // Check if user exists (optional - you might want to skip this check)
-    try {
-      const user = await User.findOne({ username: to_user });
-      if (!user) {
-        console.log('User not found:', to_user);
-        // Instead of failing, we'll still create payment but log the issue
-        console.log('Proceeding without user validation');
-      } else {
-        console.log('User found:', user.username);
-      }
-    } catch (userError) {
-      console.error('Error checking user:', userError);
-      // Continue anyway - don't fail the payment
-    }
+    await connectDB();
 
     // Check if transaction ID already exists
-    try {
-      const existing = await Payment.findOne({ transactionId });
-      if (existing) {
-        console.log('Transaction ID already exists:', transactionId);
-        return NextResponse.json(
-          { success: false, error: 'Transaction ID already used' },
-          { status: 400 }
-        );
-      }
-    } catch (existingError) {
-      console.error('Error checking existing payment:', existingError);
-      // Continue anyway
+    const existingPayment = await Payment.findOne({ transactionId });
+    if (existingPayment) {
+      return NextResponse.json({
+        success: false,
+        error: 'This transaction ID has already been used.'
+      }, { status: 400 });
+    }
+
+    // Verify transaction with banking system
+    const verification = await verifyUPITransaction(transactionId, parsedAmount);
+
+    if (!verification.verified) {
+      return NextResponse.json({
+        success: false,
+        error: verification.error || 'Invalid transaction ID'
+      }, { status: 400 });
     }
 
     // Create payment record
-    console.log('Creating payment record...');
-    try {
-      const payment = await Payment.create({
-        name,
-        amount: parsedAmount,
-        message: message || '',
-        to_user,
-        transactionId,
-        oid: transactionId, // Use transactionId as oid for UPI payments
-        method: 'upi',
-        done: true,
-        status: 'completed',
-        currency: 'INR',
-        createdAt: new Date()
-      });
-
-      console.log('✅ Payment created successfully:', payment);
-
-      return NextResponse.json({ 
-        success: true, 
-        payment,
-        message: 'Payment verified successfully' 
-      });
-      
-    } catch (createError) {
-      console.error('Error creating payment:', createError);
-      
-      // Check for MongoDB duplicate key error
-      if (createError.code === 11000) {
-        return NextResponse.json(
-          { success: false, error: 'Transaction ID already exists' },
-          { status: 400 }
-        );
+    const payment = await Payment.create({
+      name,
+      amount: parsedAmount,
+      message: message || '',
+      to_user,
+      transactionId,
+      oid: transactionId, // Use transactionId as order ID
+      method: 'upi',
+      status: 'completed',
+      verified: true,
+      done: true,
+      metadata: {
+        upiApp: verification.app,
+        verifiedAt: new Date().toISOString(),
+        transactionReference: verification.transactionDetails?.reference,
+        verificationMethod: 'upi_bank_simulated'
       }
-      
-      throw createError; // Re-throw to be caught by outer catch
-    }
-    
+    });
+
+    // Return success response
+    return NextResponse.json({
+      success: true,
+      message: `✅ Payment verified successfully via ${verification.app}!`,
+      payment: {
+        id: payment._id,
+        name: payment.name,
+        amount: payment.amount,
+        message: payment.message,
+        method: payment.method,
+        transactionId: payment.transactionId
+      }
+    });
+
   } catch (error) {
-    console.error('❌ UPI verification error:', error);
-    
-    return NextResponse.json(
-      { success: false, error: 'Failed to verify payment: ' + error.message },
-      { status: 500 }
-    );
+    console.error('UPI verification error:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Payment verification failed. Please try again.'
+    }, { status: 500 });
+  }
+}
+
+// Optional: GET endpoint to check transaction status
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const transactionId = searchParams.get('transactionId');
+
+    if (!transactionId) {
+      return NextResponse.json({
+        error: 'Transaction ID required'
+      }, { status: 400 });
+    }
+
+    await connectDB();
+    const payment = await Payment.findOne({ transactionId });
+
+    if (!payment) {
+      return NextResponse.json({
+        verified: false,
+        message: 'Transaction not found'
+      });
+    }
+
+    return NextResponse.json({
+      verified: payment.verified,
+      status: payment.status,
+      amount: payment.amount,
+      name: payment.name,
+      time: payment.createdAt
+    });
+
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

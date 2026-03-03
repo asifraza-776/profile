@@ -27,7 +27,6 @@ export async function POST(request) {
       projectType: projectType || 'Other',
       message,
       createdAt: new Date(),
-      status: 'unread'
     });
 
     return NextResponse.json(

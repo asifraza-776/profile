@@ -13,8 +13,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "get-me-a-chai",
-  description: "this website is a chai lover's paradise",
+  title: "Asif profile",
+  description: "this website is a profile website of asif",
+  icons: {
+    icon: "/favicon.jpg",  // ← Just the filename, no /public needed
+    apple: "/favicon.jpg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -31,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <Footer />
-          <ToastContainer 
+          <ToastContainer
             position="top-right"
             autoClose={5000}
             hideProgressBar={false}
