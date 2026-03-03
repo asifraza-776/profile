@@ -110,7 +110,7 @@ export default function PaymentsPage() {
         description: 'Get Me a Chai Donation',
         image: currentUser.profilepic || '/default-avatar.png',
         order_id: order.order.id,
-        
+
         handler: async (response) => {
           console.log('✅ Razorpay payment success:', response);
 
@@ -217,7 +217,7 @@ export default function PaymentsPage() {
     const amount = parseInt(paymentform.amount);
     const name = encodeURIComponent(paymentform.name || 'Supporter');
     const message = encodeURIComponent(paymentform.message || 'Support');
-    
+
     return `upi://pay?pa=${upiId}&pn=${name}&am=${amount}&cu=INR&tn=${message}`;
   };
 
@@ -249,27 +249,66 @@ export default function PaymentsPage() {
   };
 
   const handleUpiVerification = async () => {
-    if (!transactionId) {
+    if (!transactionId.trim()) {
       toast.error('Please enter transaction ID');
       return;
     }
 
+    if (!paymentform.amount || paymentform.amount < 1) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (!paymentform.name.trim()) {
+      toast.error('Please enter your name');
+      return;
+    }
+
+    // Show loading toast
+    const toastId = toast.loading('Verifying payment...');
+
     try {
+      console.log('Sending verification request:', {
+        name: paymentform.name,
+        amount: parseInt(paymentform.amount),
+        message: paymentform.message,
+        transactionId: transactionId.trim(),
+        to_user: currentUser?.username || 'asifazhar786'
+      });
+
       const res = await fetch('/api/upi-payment/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: paymentform.name,
+          name: paymentform.name.trim(),
           amount: parseInt(paymentform.amount),
-          message: paymentform.message,
-          transactionId,
+          message: paymentform.message.trim() || '',
+          transactionId: transactionId.trim(),
           to_user: currentUser?.username || 'asifazhar786'
         })
       });
 
-      const data = await res.json();
+      // Try to parse response
+      let data;
+      const responseText = await res.text();
+      console.log('Raw response:', responseText);
 
-      if (data.success) {
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response:', responseText);
+        toast.update(toastId, {
+          type: 'error',
+          render: 'Server returned invalid response',
+          isLoading: false,
+          autoClose: 3000
+        });
+        return;
+      }
+
+      toast.dismiss(toastId);
+
+      if (res.ok && data.success) {
         toast.success('🎉 Payment verified! Thank you for your support!', {
           position: "top-right",
           autoClose: 5000,
@@ -280,10 +319,10 @@ export default function PaymentsPage() {
           theme: "light",
           transition: Bounce,
         });
-        
+
         // Refresh data
         await fetchUserData();
-        
+
         // Reset all states
         setShowUpiForm(false);
         setShowQR(false);
@@ -298,6 +337,7 @@ export default function PaymentsPage() {
       }
     } catch (error) {
       console.error('UPI verification error:', error);
+      toast.dismiss(toastId);
       toast.error('Verification failed. Please try again.');
     }
   };
@@ -338,7 +378,7 @@ export default function PaymentsPage() {
               <Link href="/" className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
                 Home
               </Link>
-              
+
             </div>
           </div>
         </div>
@@ -402,11 +442,10 @@ export default function PaymentsPage() {
                     setShowQR(false);
                     setShowUpiForm(false);
                   }}
-                  className={`flex-1 py-3 rounded-lg font-medium transition-all ${
-                    paymentMethod === 'razorpay'
+                  className={`flex-1 py-3 rounded-lg font-medium transition-all ${paymentMethod === 'razorpay'
                       ? 'bg-gradient-to-r from-purple-600 to-blue-600'
                       : 'bg-gray-800 hover:bg-gray-700'
-                  }`}
+                    }`}
                 >
                   💳 Razorpay
                 </button>
@@ -416,11 +455,10 @@ export default function PaymentsPage() {
                     setShowQR(false);
                     setShowUpiForm(false);
                   }}
-                  className={`flex-1 py-3 rounded-lg font-medium transition-all ${
-                    paymentMethod === 'qr'
+                  className={`flex-1 py-3 rounded-lg font-medium transition-all ${paymentMethod === 'qr'
                       ? 'bg-gradient-to-r from-purple-600 to-blue-600'
                       : 'bg-gray-800 hover:bg-gray-700'
-                  }`}
+                    }`}
                 >
                   📱 UPI/QR Code
                 </button>
@@ -470,7 +508,7 @@ export default function PaymentsPage() {
                 {showQR && paymentMethod === 'qr' && paymentform.amount && (
                   <div className="mt-4 p-6 bg-white rounded-xl flex flex-col items-center">
                     <h3 className="text-black font-bold mb-4">Pay ₹{paymentform.amount} via UPI</h3>
-                    
+
                     {/* UPI ID Display */}
                     <div className="bg-gray-100 p-3 rounded-lg mb-4 w-full text-center">
                       <p className="text-black text-sm mb-1">UPI ID:</p>
@@ -486,7 +524,7 @@ export default function PaymentsPage() {
                       level="L"
                       includeMargin={false}
                     />
-                    
+
                     <p className="text-black text-sm mt-4 text-center">
                       Scan with any UPI app (Google Pay, PhonePe, Paytm)
                     </p>
