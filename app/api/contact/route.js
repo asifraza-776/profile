@@ -1,6 +1,7 @@
 // app/api/contact/route.js
 import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import connectDB from '@/db/connectDB';
+import Contact from '@/models/Contact';
 
 export async function POST(request) {
   try {
@@ -15,25 +16,22 @@ export async function POST(request) {
       );
     }
 
-    // Connect to MongoDB
-    const client = await clientPromise;
-    const db = client.db('profile'); // database name
-    const collection = db.collection('contacts'); // collection name
+    // Connect securely using uniform Mongoose connection
+    await connectDB();
 
     // Insert contact form data
-    const result = await collection.insertOne({
+    const newContact = await Contact.create({
       name,
       email,
       projectType: projectType || 'Other',
-      message,
-      createdAt: new Date(),
+      message
     });
 
     return NextResponse.json(
       { 
         success: true, 
         message: 'Message sent successfully!',
-        id: result.insertedId 
+        id: newContact._id.toString() 
       },
       { status: 201 }
     );
@@ -41,7 +39,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Contact form error:', error);
     return NextResponse.json(
-      { error: 'Failed to send message' },
+      { error: 'Failed to send message: ' + error.message },
       { status: 500 }
     );
   }

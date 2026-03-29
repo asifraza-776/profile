@@ -21,6 +21,7 @@ const connectDB = async () => {
 
     // Create new connection
     await mongoose.connect(process.env.MONGODB_URI, {
+      dbName: 'profile', // Forces MongoDB to save inside the correct database
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
