@@ -18,11 +18,11 @@ export const initiate = async (amount, to_username, paymentform) => {
     // Check if user has Razorpay credentials
     if (!user.razorpayid || !user.razorpaysecret) {
         // Fallback to environment variables for testing
-        const razorpayId = process.env.NEXT_PUBLIC_KEY_ID
-        const razorpaySecret = process.env.KEY_SECRET
+        const razorpayId = process.env.RAZORPAY_KEY_ID
+        const razorpaySecret = process.env.RAZORPAY_KEY_SECRET
         
         if (!razorpayId || !razorpaySecret) {
-            throw new Error("Razorpay credentials not configured. Please set up Razorpay in your account settings.")
+            throw new Error("This creator has not set up their payment details yet.")
         }
         
         var instance = new Razorpay({ 
